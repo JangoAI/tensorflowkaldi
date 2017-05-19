@@ -89,7 +89,7 @@ class Nnet(object):
         #put the DNN in a training environment
         epoch = int(self.conf['epoch'])
         max_epoch = int(self.conf['max_epoch'])
-        halve_learning_rate = bool(self.conf['halve_learning_rate']) 
+        halve_learning_rate = int(self.conf['halve_learning_rate']) 
         start_halving_impr = float(self.conf['start_halving_impr'])
         end_halving_impr = float(self.conf['end_halving_impr'])
         trainer = CrossEnthropyTrainer(
@@ -99,7 +99,8 @@ class Nnet(object):
             float(self.conf['l1_penalty']),
             float(self.conf['l2_penalty']),
             float(self.conf['momentum']), 
-            int(self.conf['minibatch_size']))
+            int(self.conf['minibatch_size']),
+            float(self.conf['clip_grad']))
 
         #start the visualization if it is requested
         if self.conf['visualise'] == 'True':
@@ -136,7 +137,7 @@ class Nnet(object):
                 #validate the model if required
 
                 current_loss = trainer.evaluate(dispenser_dev)
-                print '=======================================validation loss at epoch %d is: %f ========================== ' % (epoch, current_loss)
+                print '=======================================validation loss at epoch %d is: %f ==========================' % (epoch, current_loss)
 
                 epoch += 1
 
@@ -154,7 +155,7 @@ class Nnet(object):
                         validation_loss = current_loss
                         pre_loss = loss
                         trainer.save_trainer(self.conf['savedir']
-                                            + '/training/iter_' + str(epoch) + '_tr'+str(loss)+'_cv'+str(validation_loss))
+                                            + '/training/', 'iter_' + str(epoch) + '_tr'+str(loss)+'_cv'+str(validation_loss))
                     else:
                         print ('the validation loss is worse, returning to '
                                'the previously validated model with halved '
@@ -172,7 +173,7 @@ class Nnet(object):
                         validation_loss = current_loss
 
                         trainer.save_trainer(self.conf['savedir']
-                                            + '/training/iter_' + str(epoch) + '_tr'+str(loss)+'_cv'+str(validation_loss))
+                                            + '/training/', 'iter_' + str(epoch) + '_tr'+str(loss)+'_cv'+str(validation_loss))
 
                     else:
                         trainer.restore_trainer(self.conf['savedir'] + '/training/')
@@ -219,16 +220,12 @@ class Nnet(object):
 
                 if looped:
                     break
-
                 #compute predictions
                 output = decoder(utt_mat)
-
                 #get state likelihoods by dividing by the prior
                 output = output/prior
-
                 #floor the values to avoid problems with log
-                np.where(output == 0, np.finfo(float).eps, output)
-
+                output = np.where(output == 0, np.finfo(float).eps, output)
                 #write the pseudo-likelihoods in kaldi feature format
                 writer.write_next_utt(utt_id, np.log(output))
 

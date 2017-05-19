@@ -30,8 +30,6 @@ class Decoder(object):
             self.seq_length = tf.placeholder(
                 tf.int32, shape=[1], name='seq_length')
 
-            #split_inputs = tf.unstack(tf.expand_dims(self.inputs, 1))
-            #inputs = self.inputs
             #create the decoding graph
             logits, _, self.saver, _ = classifier(self.inputs, self.seq_length,
                                                is_training=False, reuse=False,
@@ -62,13 +60,10 @@ class Decoder(object):
         seq_length = [inputs.shape[0]]
 
         #pad the inputs
-        inputs = np.append(
-            inputs, np.zeros([self.max_length-inputs.shape[0], inputs.shape[1]])
-            , 0)
-
+        #print inputs
+        inputs = np.append(inputs, np.zeros([self.max_length-inputs.shape[0], inputs.shape[1]]), 0)
         #pylint: disable=E1101
-        return self.outputs.eval(feed_dict={self.inputs:inputs,
-                                            self.seq_length:seq_length})
+        return self.outputs.eval(feed_dict={self.inputs:inputs,self.seq_length:seq_length})
 
     def restore(self, filename):
         '''

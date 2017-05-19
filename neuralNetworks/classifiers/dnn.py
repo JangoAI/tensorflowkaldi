@@ -71,7 +71,6 @@ class DNN(Classifier):
 
             #convert the sequential data to non sequential data
             #nonseq_inputs = seq_convertors.seq2nonseq(inputs, seq_length)
-
             activations = [None]*self.num_layers
             activations[0] = layer(inputs, is_training, reuse, 'layer0')
             for l in range(1, self.num_layers):

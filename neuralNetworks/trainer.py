@@ -12,7 +12,7 @@ class Trainer(object):
 
     def __init__(self, classifier, input_dim, max_input_length,
                  max_target_length, init_learning_rate, l1_penalty,
-                 l2_penalty, momentum, minibatch_size):
+                 l2_penalty, momentum, minibatch_size, clip_grad):
         '''
         NnetTrainer constructor, creates the training graph
 
@@ -163,7 +163,7 @@ class Trainer(object):
                                     name=grad.op.name) for grad in grads]
 
                 #clip the gradients
-                meangrads = [tf.clip_by_value(grad, -10., 10.)
+                meangrads = [tf.clip_by_value(grad, -clip_grad, clip_grad)
                              for grad in meangrads]
                 #apply the gradients
                 self.apply_gradients_op = optimizer.apply_gradients(
@@ -423,8 +423,8 @@ class Trainer(object):
 
         self.modelsaver.save(tf.get_default_session(), filedir+filename)
         self.saver.save(tf.get_default_session(), filedir+filename + '_trainvars')
-        File = filedir+'/mlp_best'
-        model_file = open('File', w)
+        File = filedir+'mlp_best'
+        model_file = open(File, 'w')
         model_file.write(filename) 
         model_file.close()
 
@@ -435,10 +435,11 @@ class Trainer(object):
         Args:
             filename: path where the model will be saved
         '''
-        File = filedir + '/mlp_best'
-        model_file = open('File',r)
+        File = filedir + 'mlp_best'
+        model_file = open(File,'r')
         filename = model_file.readline()
-        filename = filedir + str(filename)
+        filename = filename.split('\n')
+        filename = filedir + str(filename[0])
         self.modelsaver.restore(tf.get_default_session(), filename)
         self.saver.restore(tf.get_default_session(), filename + '_trainvars')
 
