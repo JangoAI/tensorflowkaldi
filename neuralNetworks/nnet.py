@@ -161,6 +161,8 @@ class Nnet(object):
 
                         trainer.restore_trainer(self.conf['savedir']+ '/training/')
                         trainer.halve_learning_rate()
+                        halve_learning_rate = 1
+                        print "================begining to halve learning rate================"
                         continue
                 else:
 
