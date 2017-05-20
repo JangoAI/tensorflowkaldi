@@ -146,11 +146,9 @@ class Nnet(object):
                     if current_loss < validation_loss:
 
                         if current_loss > (validation_loss - start_halving_impr):
-
-                            trainer.halve_learning_rate()
-                        else:
                             halve_learning_rate = 1
                             trainer.halve_learning_rate()
+                            print "================begining to halve learning rate================"
 
                         validation_loss = current_loss
                         pre_loss = loss
