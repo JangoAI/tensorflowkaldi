@@ -10,7 +10,7 @@ from activation import TfActivation
 class DNN(Classifier):
     '''This class is a graph for feedforward fully connected neural nets.'''
 
-    def __init__(self, output_dim, num_layers, num_units, activation,
+    def __init__(self, output_dim, num_layers, num_units, activation, weight_init,
                  layerwise_init=True):
         '''
         DNN constructor
@@ -32,6 +32,7 @@ class DNN(Classifier):
         self.num_layers = num_layers
         self.num_units = num_units
         self.activation = activation
+        self.weight_init = weight_init
         self.layerwise_init = layerwise_init
 
     def __call__(self, inputs, seq_length, is_training=False, reuse=False,
@@ -61,11 +62,11 @@ class DNN(Classifier):
         with tf.variable_scope(scope or type(self).__name__, reuse=reuse):
 
             #input layer
-            layer = FFLayer(self.num_units, self.activation)
+            layer = FFLayer(self.num_units, self.activation, self.weight_init)
 
             #output layer
             outlayer = FFLayer(self.output_dim,
-                               TfActivation(None, lambda(x): x), 0.01)
+                               TfActivation(None, lambda(x): x), self.weight_init, 0.002)
 
             #do the forward computation
 

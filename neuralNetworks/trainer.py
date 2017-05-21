@@ -96,7 +96,9 @@ class Trainer(object):
                     initializer=tf.constant_initializer(1.0), trainable=False)
 
                 #compute the learning rate with exponential decay and scale with the learning rate factor
-                learning_rate = init_learning_rate * learning_rate_fact
+                learning_rate = tf.train.exponential_decay(
+                    init_learning_rate, 0, 1,
+                    1.0) * learning_rate_fact
                
                 #create the optimizer
                 optimizer = tf.train.AdadeltaOptimizer(learning_rate)

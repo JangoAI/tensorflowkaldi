@@ -6,20 +6,21 @@ import tensorflow as tf
 class FFLayer(object):
     '''This class defines a fully connected feed forward layer'''
 
-    def __init__(self, output_dim, activation, weights_std=None):
+    def __init__(self, output_dim, activation, weight_init, weights_param=None):
         '''
         FFLayer constructor, defines the variables
         Args:
             output_dim: output dimension of the layer
             activation: the activation function
-            weights_std: the standart deviation of the weights by default the
-                inverse square root of the input dimension is taken
+            weights_init: the method to initialize the weights
+            weights_param: the standart deviation of the weights by default the
+            inverse square root of the input dimension is taken
         '''
-
         #save the parameters
         self.output_dim = output_dim
         self.activation = activation
-        self.weights_std = weights_std
+        self.weight_init = weight_init
+        self.weights_param = weights_param
 
     def __call__(self, inputs, is_training=False, reuse=False, scope=None):
         '''
@@ -35,16 +36,30 @@ class FFLayer(object):
 
         with tf.variable_scope(scope or type(self).__name__, reuse=reuse):
             with tf.variable_scope('parameters', reuse=reuse):
-               
-                stddev = (self.weights_std if self.weights_std is not None
-                          else 0.01)
-                weights = tf.get_variable(
-                    'weights', [inputs.get_shape()[1], self.output_dim],
-                    initializer=tf.random_normal_initializer(stddev=stddev))
 
-                biases = tf.get_variable(
-                    'biases', [self.output_dim],
-                    initializer=tf.constant_initializer(0.01))
+                if self.weight_init == 'normal':
+                    stddev = (self.weights_param if self.weights_param is not None
+                                else 1/int(inputs.get_shape()[1])**0.5)
+                    weights = tf.get_variable(
+                        'weights', [inputs.get_shape()[1], self.output_dim],
+                        initializer=tf.random_normal_initializer(stddev=stddev))
+
+                    biases = tf.get_variable(
+                        'biases', [self.output_dim],
+                        initializer=tf.random_uniform_initializer(minval=0.0, maxval=0.1))
+
+                elif self.weight_init == 'uniform':
+                    Range = (self.weights_param if self.weights_param is not None
+                                else 1/int(inputs.get_shape()[1])**0.5)
+                    weights = tf.get_variable(
+                        'weights', [inputs.get_shape()[1], self.output_dim],
+                        initializer=tf.random_uniform_initializer(minval=-Range,maxval=Range))
+
+                    biases = tf.get_variable(
+                        'biases', [self.output_dim],
+                        initializer=tf.random_uniform_initializer(minval=0.0, maxval=0.1))
+                else:
+                    raise Exception('unkown initialization method')
 
             #apply weights and biases
             with tf.variable_scope('linear', reuse=reuse):

@@ -70,12 +70,14 @@ class Nnet(object):
         if float(self.conf['dropout']) < 1:
             activation = classifiers.activation.Dropout(
                 activation, float(self.conf['dropout']))
+            
+        self.weight_init = self.conf['weight_init']
 
         #create a DNN
         self.dnn = DNN(
             num_labels, int(self.conf['num_hidden_layers']),
             int(self.conf['num_hidden_units']), activation,
-            int(self.conf['add_layer_period']) > 0)
+            self.weight_init, int(self.conf['add_layer_period']) > 0)
 
     def train(self, dispenser, dispenser_dev):
         '''
@@ -123,7 +125,7 @@ class Nnet(object):
             #do a validation step
             
             validation_loss = trainer.evaluate(dispenser_dev)
-            print '=======================================validation loss at epoch %d is: %f =============================' % (epoch, validation_loss)
+            print '======================================= validation loss at epoch %d is: %f =============================' % (epoch, validation_loss)
 
             #start the training iteration
             while (epoch < max_epoch):
@@ -132,12 +134,12 @@ class Nnet(object):
                 loss = trainer.update(dispenser)
 
                 #print the progress
-                print '=======================================epoch %d training loss is : %f ==============================' %(epoch, loss)
+                print '======================================= training loss at epoch %d is : %f ==============================' %(epoch, loss)
 
                 #validate the model if required
 
                 current_loss = trainer.evaluate(dispenser_dev)
-                print '=======================================validation loss at epoch %d is: %f ==========================' % (epoch, current_loss)
+                print '======================================= validation loss at epoch %d is: %f ==========================' % (epoch, current_loss)
 
                 epoch += 1
 
@@ -148,7 +150,7 @@ class Nnet(object):
                         if current_loss > (validation_loss - start_halving_impr):
                             halve_learning_rate = 1
                             trainer.halve_learning_rate()
-                            print "================begining to halve learning rate================"
+                            print "================ begining to halve learning rate ================"
 
                         validation_loss = current_loss
                         pre_loss = loss
@@ -162,7 +164,7 @@ class Nnet(object):
                         trainer.restore_trainer(self.conf['savedir']+ '/training/')
                         trainer.halve_learning_rate()
                         halve_learning_rate = 1
-                        print "================begining to halve learning rate================"
+                        print "================ begining to halve learning rate ================"
                         continue
                 else:
 
