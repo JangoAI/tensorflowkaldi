@@ -24,7 +24,7 @@ class Decoder(object):
 
             #create the inputs placeholder
             self.inputs = tf.placeholder(
-                tf.float32, shape=[max_length, input_dim], name='inputs')
+                tf.float32, shape=[None, input_dim], name='inputs')
 
             #create the sequence length placeholder
             self.seq_length = tf.placeholder(
@@ -61,7 +61,7 @@ class Decoder(object):
 
         #pad the inputs
         #print inputs
-        inputs = np.append(inputs, np.zeros([self.max_length-inputs.shape[0], inputs.shape[1]]), 0)
+        #inputs = np.append(inputs, np.zeros([self.max_length-inputs.shape[0], inputs.shape[1]]), 0)
         #pylint: disable=E1101
         return self.outputs.eval(feed_dict={self.inputs:inputs,self.seq_length:seq_length})
 

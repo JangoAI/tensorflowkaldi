@@ -267,7 +267,7 @@ class Trainer(object):
         
             assert input_seq_length == output_seq_length
             #fill the inputs to have a round number of minibatches
-            added_inputs = np.row_stack((inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1]))))
+            added_inputs = np.append(inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1])),0)
 
             added_targets = np.append(targets, np.zeros(self.minibatch_size - len(targets)%self.minibatch_size))
 
