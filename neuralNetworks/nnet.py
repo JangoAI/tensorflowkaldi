@@ -37,7 +37,7 @@ class Nnet(object):
             os.mkdir(self.conf['savedir'] + '/training')
 
         #compute the input_dimension of the spliced features
-        self.input_dim = input_dim * (2*int(self.conf['context_width']) + 1)
+        self.input_dim = input_dim
 
         if self.conf['batch_norm'] == 'True':
             activation = classifiers.activation.Batchnorm(None)
