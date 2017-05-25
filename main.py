@@ -21,7 +21,7 @@ TRAIN_TRI = False			#required if the triphone or LDA GMM is used for alignments
 ALIGN_TRI = False			#required if the triphone or LDA GMM is used for alignments
 TEST_TRI = False			#required if the performance of the triphone GMM is tested
 TRAIN_LDA = False			#required if the LDA GMM is used for alignments
-ALIGN_LDA = False			#required if the LDA GMM is used for alignments
+ALIGN_LDA = True			#required if the LDA GMM is used for alignments
 TEST_LDA = False			#required if the performance of the LDA GMM is tested
 DNNFEATURESPRO = False      #required if the features need global transform 
 TRAIN_NNET = True			#required
@@ -232,19 +232,17 @@ if TRAIN_NNET:
         #go back to working dir
         os.chdir(current_dir)
 
-        os.system(''' head -n 2000 %s/feats_delta.scp > %s/train.scp.2k ''' %(
+        os.system(''' head -n 3000 %s/feats_delta.scp > %s/train.scp.3k ''' %(
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name')))
 
-        os.system(''' copy-feats scp:%s/train.scp.2k ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark:- | 
-                add-deltas --delta-order=%s ark:- ark:- | nnet-forward --use-gpu=yes %s/tr_splice%d-%d.nnet ark:- ark:- | compute-cmvn-stats ark:- - | cmvn-to-nnet - - |
+        os.system(''' copy-feats scp:%s/train.scp.3k ark:- | add-deltas --delta-order=%s ark:- ark:- | 
+                nnet-forward --use-gpu=yes %s/tr_splice%d-%d.nnet ark:- ark:- | compute-cmvn-stats ark:- - | cmvn-to-nnet - - |
                 nnet-concat --binary=false %s/tr_splice%d-%d.nnet - %s/final.feature_transform ''' %(
-                config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
-                config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'), config.get('nnet', 'delta_order'),
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'), splice, splice_step,
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'), splice, splice_step,
-                config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),))
+                config.get('directories', 'expdir') + '/' + config.get('nnet', 'name')))
 
         os.system(''' copy-feats scp:%s/feats_delta.scp ark:- | nnet-forward --use-gpu=yes %s/final.feature_transform ark:- ark,scp:%s/final_train_feature.ark,%s/final_train_feature.scp''' %(
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
