@@ -1,10 +1,7 @@
-[![Build Status](https://travis-ci.org/kaldi-asr/kaldi.svg?branch=master)]
-(https://travis-ci.org/kaldi-asr/kaldi)
 
 Kaldi with TensorFlow Neural Net
 ================================
 
-Please find the documentation page [here](http://vrenkens.github.io/tfkaldi)
 
 Installation
 --------------------------
