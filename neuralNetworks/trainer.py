@@ -261,13 +261,9 @@ class Trainer(object):
  
         while dispenser.have_feature():
 
-            fmt='%Y-%m-%d %a %H:%M:%S'
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
+ 
             #get partial of the taining data
             inputs, targets = dispenser.get_feature()
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date 
             #get a list of sequence lengths
             input_seq_length = inputs.shape[0]
             output_seq_length = targets.shape[0]
@@ -309,8 +305,7 @@ class Trainer(object):
                 else:
                     [_] = tf.get_default_session().run(
                         [self.apply_gradients_op])
-            Date=time.strftime(fmt,time.localtime(time.time()))    
-            print "the time is: ", Date 
+
             #get the loss
             loss = self.average_loss.eval()
             acc = self.average_acc.eval()
@@ -345,13 +340,9 @@ class Trainer(object):
         epoch_loss = 0.0
         epoch_acc = 0.0
         while dispenser_dev.have_feature():
-            fmt='%Y-%m-%d %a %H:%M:%S'
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
+ 
             #get partial of the taining data
             inputs, targets = dispenser_dev.get_feature()
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
 
             #get a list of sequence lengths
             input_seq_length = inputs.shape[0]
@@ -381,9 +372,6 @@ class Trainer(object):
                 self.update_valid_loss.run(
                     feed_dict={self.inputs:batch_inputs,
                                self.targets:batch_targets})
-                
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
 
             #get the loss
             loss = self.average_loss.eval()
