@@ -274,8 +274,7 @@ class Trainer(object):
         
             assert input_seq_length == output_seq_length
             #fill the inputs to have a round number of minibatches
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
+
             added_inputs = np.append(inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1])), 0)
 
 
@@ -286,16 +285,14 @@ class Trainer(object):
             output_seq_length = output_seq_length + (self.minibatch_size - output_seq_length%self.minibatch_size)
 
 
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
+
             #feed in the batches one by one and accumulate the gradients and loss
             for k in range(input_seq_length/self.minibatch_size):
 
                 batch_inputs = added_inputs[ k*self.minibatch_size:(k+1)*self.minibatch_size,:]
                 batch_targets = added_targets[ k*self.minibatch_size:(k+1)*self.minibatch_size]
                 batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
-                Date=time.strftime(fmt,time.localtime(time.time()))
-                print "the time is: ", Date  
+
                 #pylint: disable=E1101
                 self.update_gradients_op.run(feed_dict={self.inputs:batch_inputs, self.targets:batch_targets})
 
@@ -375,14 +372,12 @@ class Trainer(object):
                 batch_inputs = added_inputs[k*self.minibatch_size:
                                             (k+1)*self.minibatch_size,
                                             :]
-                Date=time.strftime(fmt,time.localtime(time.time()))
-                print "the time is: ", Date  
+
                 batch_targets = added_targets[k*self.minibatch_size:
                                             (k+1)*self.minibatch_size]
                 batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
                 #pylint: disable=E1101
-                Date=time.strftime(fmt,time.localtime(time.time()))
-                print "the time is: ", Date  
+ 
                 self.update_valid_loss.run(
                     feed_dict={self.inputs:batch_inputs,
                                self.targets:batch_targets})
