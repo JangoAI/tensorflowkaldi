@@ -24,6 +24,7 @@ TRAIN_LDA = False			#required if the LDA GMM is used for alignments
 ALIGN_LDA = False			#required if the LDA GMM is used for alignments
 TEST_LDA = False			#required if the performance of the LDA GMM is tested
 DNNFEATURESPRO = False      #required if the features need global transform 
+DNNTESTFEATPRO = False      #required if the test features need global transform
 TRAIN_NNET = True			#required
 TEST_NNET = True			#required if the performance of the DNN is tested
 
@@ -194,6 +195,15 @@ if TRAIN_NNET:
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name'),
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name'),
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name')))
+
+            os.system(''' copy-feats scp:%s/feats.scp ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark:- |
+                        add-deltas --delta-order=%d ark:- ark,scp:%s/feats_delta.ark,%s/feats_delat.scp''' %(
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), int(delta_order),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name')))                                                                                    
             
         else:
             os.system(''' copy-feats scp:%s/feats_shuffled.scp ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark,scp:%s/feats_delta.ark,%s/feats_delta.scp ''' %(
@@ -209,6 +219,13 @@ if TRAIN_NNET:
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name'),
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name'),
                       config.get('directories', 'dev_features') + '/' +  config.get('dnn-features', 'name')))
+
+            os.system(''' copy-feats scp:%s/feats.scp ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark,scp:%s/feats_delta.ark,%s/feats_delta.scp ''' %(
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name')))
 
         #generate the global transform
         print '------- generate global transform ------'
@@ -232,15 +249,13 @@ if TRAIN_NNET:
         #go back to working dir
         os.chdir(current_dir)
 
-        os.system(''' head -n 2000 %s/feats_delta.scp > %s/train.scp.2k ''' %(
+        os.system(''' head -n 3000 %s/feats_delta.scp > %s/train.scp.3k ''' %(
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name')))
 
-        os.system(''' copy-feats scp:%s/train.scp.2k ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark:- | 
-                add-deltas --delta-order=%s ark:- ark:- | nnet-forward --use-gpu=yes %s/tr_splice%d-%d.nnet ark:- ark:- | compute-cmvn-stats ark:- - | cmvn-to-nnet - - |
+        os.system(''' copy-feats scp:%s/train.scp.3k ark:- | add-deltas --delta-order=%s ark:- ark:- | 
+                nnet-forward --use-gpu=yes %s/tr_splice%d-%d.nnet ark:- ark:- | compute-cmvn-stats ark:- - | cmvn-to-nnet - - |
                 nnet-concat --binary=false %s/tr_splice%d-%d.nnet - %s/final.feature_transform ''' %(
-                config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
-                config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'), config.get('nnet', 'delta_order'),
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'), splice, splice_step,
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'), splice, splice_step,
@@ -251,11 +266,18 @@ if TRAIN_NNET:
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'train_features') + '/' + config.get('dnn-features', 'name')))
+
         os.system(''' copy-feats scp:%s/feats_delta.scp ark:- | nnet-forward --use-gpu=yes %s/final.feature_transform ark:- ark,scp:%s/final_dev_feature.ark,%s/final_dev_feature.scp''' %(
                 config.get('directories', 'dev_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),
                 config.get('directories', 'dev_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'dev_features') + '/' + config.get('dnn-features', 'name')))
+
+        os.system(''' copy-feats scp:%s/feats_delta.scp ark:- | nnet-forward --use-gpu=yes %s/final.feature_transform ark:- ark,scp:%s/final_test_feature.ark,%s/final_test_feature.scp''' %(
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name'),
+                config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name'),
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name')))
 
     #create a feature reader
     #create a train data feature reader
@@ -283,6 +305,32 @@ if TRAIN_NNET:
 
 if TEST_NNET:
 
+    delta_order = config.get('nnet','delta_order')
+    if DNNTESTFEATPRO:
+        if int(delta_order) != 0:
+            os.system(''' copy-feats scp:%s/feats.scp ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark:- |
+                        add-deltas --delta-order=%d ark:- ark,scp:%s/feats_delta.ark,%s/feats_delat.scp''' %(
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), int(delta_order),
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                        config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name')))  
+        else:
+            os.system(''' copy-feats scp:%s/feats.scp ark:- | apply-cmvn --print-args=false --norm-vars=%s --utt2spk=ark:%s/utt2spk scp:%s/cmvn.scp ark:- ark,scp:%s/feats_delta.ark,%s/feats_delta.scp ''' %(
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'), config.get('nnet', 'norm_vars'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name'),
+                      config.get('directories', 'test_features') + '/' +  config.get('dnn-features', 'name')))
+
+        os.system(''' copy-feats scp:%s/feats_delta.scp ark:- | nnet-forward --use-gpu=yes %s/final.feature_transform ark:- ark,scp:%s/final_test_feature.ark,%s/final_test_feature.scp''' %(
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name'),
+                config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name'),
+                config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name')))
+
+
     #use the neural net to calculate posteriors for the testing set
     print '------- computing state pseudo-likelihoods ----------'
     savedir = config.get('directories', 'expdir') + '/' + config.get('nnet', 'name')
@@ -295,7 +343,7 @@ if TEST_NNET:
     #create a feature reader
     with open(featdir + '/maxlength', 'r') as fid:
         max_length = int(fid.read())
-    featreader = feature_reader.FeatureReader(featdir + '/feats.scp', featdir + '/cmvn.scp', featdir + '/utt2spk', int(config.get('nnet', 'context_width')), max_length)
+    featreader = feature_reader.FeatureReader(featdir + '/final_test_feature.scp', max_length)
 
     #create an ark writer for the likelihoods
     if os.path.isfile(decodedir + '/likelihoods.ark'):
