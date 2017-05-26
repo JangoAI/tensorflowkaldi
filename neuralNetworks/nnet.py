@@ -103,7 +103,6 @@ class Nnet(object):
             float(self.conf['momentum']), 
             int(self.conf['minibatch_size']),
             float(self.conf['clip_grad']))
-
         #start the visualization if it is requested
         if self.conf['visualise'] == 'True':
             if os.path.isdir(self.conf['savedir'] + '/logdir'):
@@ -148,9 +147,11 @@ class Nnet(object):
                     if current_loss < validation_loss:
 
                         if current_loss > (validation_loss - start_halving_impr):
+
                             halve_learning_rate = 1
                             trainer.halve_learning_rate()
                             print "================ begining to halve learning rate ================"
+
 
                         validation_loss = current_loss
                         pre_loss = loss
