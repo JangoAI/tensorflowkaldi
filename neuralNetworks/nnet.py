@@ -79,13 +79,13 @@ class Nnet(object):
             int(self.conf['num_hidden_units']), activation,
             self.weight_init, int(self.conf['add_layer_period']) > 0)
 
-    def train(self, dispenser, dispenser_dev):
+    def train(self, train_hdf5_file, dev_hdf5_file, train_max_length, dev_max_length):
         '''
         Train the neural network
 
-        Args:
-            dispenser: a batchdispenser for training data
-            dispenser_dev: a batchdispenser for dev data
+        Argvs:
+            train_hdf5_file : the taining data
+            dev_hdf5_file : the dev data
         '''
 
         #put the DNN in a training environment
@@ -95,8 +95,8 @@ class Nnet(object):
         start_halving_impr = float(self.conf['start_halving_impr'])
         end_halving_impr = float(self.conf['end_halving_impr'])
         trainer = CrossEnthropyTrainer(
-            self.dnn, self.input_dim, dispenser.max_input_length,
-            dispenser.max_target_length,
+            self.dnn, self.input_dim, train_max_length,
+            train_max_length,
             float(self.conf['initial_learning_rate']),
             float(self.conf['l1_penalty']),
             float(self.conf['l2_penalty']),
@@ -123,21 +123,21 @@ class Nnet(object):
 
             #do a validation step
             
-            validation_loss = trainer.evaluate(dispenser_dev)
+            validation_loss = trainer.evaluate(dev_hdf5_file)
             print '======================================= validation loss at epoch %d is: %f =============================' % (epoch, validation_loss)
 
             #start the training iteration
             while (epoch < max_epoch):
 
                 #update the model
-                loss = trainer.update(dispenser)
+                loss = trainer.update(train_hdf5_file)
 
                 #print the progress
                 print '======================================= training loss at epoch %d is : %f ==============================' %(epoch, loss)
 
                 #validate the model if required
 
-                current_loss = trainer.evaluate(dispenser_dev)
+                current_loss = trainer.evaluate(dev_hdf5_file)
                 print '======================================= validation loss at epoch %d is: %f ==========================' % (epoch, current_loss)
 
                 epoch += 1
@@ -187,12 +187,6 @@ class Nnet(object):
             #save the final model
             trainer.save_model(self.conf['savedir'] + '/final')
 
-        #compute the state prior and write it to the savedir
-        prior = dispenser.compute_target_count().astype(np.float32)
-        prior = prior + 1
-        prior = prior/prior.sum()
-
-        np.save(self.conf['savedir'] + '/prior.npy', prior)
 
     def decode(self, reader, writer):
         '''

@@ -1,7 +1,7 @@
 # This script does decoding with a transition model
 
 # Begin configuration section.
-stage=1
+stage=2
 nj=4 # number of decoding jobs.  If --transform-dir set, must match that number!
 acwt=0.1  # Just a default value, used for adaptation and beam-pruning..
 cmd=run.pl
@@ -11,7 +11,7 @@ min_active=200
 lattice_beam=8.0 # Beam we use in lattice generation.
 iter=final
 num_threads=1 # if >1, will use gmm-latgen-faster-parallel
-scoring_opts=
+scoring_opts="--min-lmwt 4 --max-lmwt 15"
 skip_scoring=false
 minimize=false
 # End configuration section.

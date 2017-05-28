@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 from classifiers import seq_convertors
 import time
+import h5py
 
 class Trainer(object):
     '''General class for the training environment for a neural net graph'''
@@ -245,12 +246,12 @@ class Trainer(object):
         self.summarywriter = tf.summary.FileWriter(logdir=logdir,
                                                     graph=self.graph)
 
-    def update(self, dispenser):
+    def update(self, train_hd5f_file):
         '''
         update the neural model with a batch or training data
 
         Args:
-            dispenser: a batchdispenser for training data
+            train_hd5f_file: a hd5f for training data
 
         Returns:
             the loss of this epoch
@@ -258,72 +259,49 @@ class Trainer(object):
         num_blocks = 0
         epoch_loss = 0.0
         epoch_acc = 0.0
+        hd5f = h5py.File(train_hd5f_file, 'r')
  
-        while dispenser.have_feature():
+        num_batchs = hd5f['data'].len() / self.minibatch_size
+        input_dim = hd5f['data'].shape[1] - 1
+        #feed in the batches one by one and accumulate the gradients and loss
+        for k in range(num_batchs):
 
-            fmt='%Y-%m-%d %a %H:%M:%S'
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
-            #get partial of the taining data
-            inputs, targets = dispenser.get_feature()
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date 
-            #get a list of sequence lengths
-            input_seq_length = inputs.shape[0]
-            output_seq_length = targets.shape[0]
-        
-            assert input_seq_length == output_seq_length
-            #fill the inputs to have a round number of minibatches
+            batch_inputs = hd5f['data'][ k*self.minibatch_size:(k+1)*self.minibatch_size, 0:input_dim]
+            batch_targets = hd5f['data'][ k*self.minibatch_size:(k+1)*self.minibatch_size, input_dim:input_dim+1]
+            batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
 
-            added_inputs = np.append(inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1])), 0)
+            #pylint: disable=E1101
+            self.update_gradients_op.run(feed_dict={self.inputs:batch_inputs, self.targets:batch_targets})
 
+            #apply the accumulated gradients to update the model parameters and
+            #evaluate the loss
+            if self.summarywriter is not None:
 
-            added_targets = np.append(targets, np.zeros(self.minibatch_size - len(targets)%self.minibatch_size))
-
-            input_seq_length = input_seq_length + (self.minibatch_size - input_seq_length%self.minibatch_size)
-
-            output_seq_length = output_seq_length + (self.minibatch_size - output_seq_length%self.minibatch_size)
-
-
-
-            #feed in the batches one by one and accumulate the gradients and loss
-            for k in range(input_seq_length/self.minibatch_size):
-
-                batch_inputs = added_inputs[ k*self.minibatch_size:(k+1)*self.minibatch_size,:]
-                batch_targets = added_targets[ k*self.minibatch_size:(k+1)*self.minibatch_size]
-                batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
+                [summary, _] = tf.get_default_session().run(
+                    [ self.summary, self.apply_gradients_op])
 
                 #pylint: disable=E1101
-                self.update_gradients_op.run(feed_dict={self.inputs:batch_inputs, self.targets:batch_targets})
+                self.summarywriter.add_summary(summary)
 
-                #apply the accumulated gradients to update the model parameters and
-                #evaluate the loss
-                if self.summarywriter is not None:
+            else:
+                [_] = tf.get_default_session().run(
+                    [self.apply_gradients_op])
 
-                    [summary, _] = tf.get_default_session().run(
-                        [ self.summary, self.apply_gradients_op])
 
-                    #pylint: disable=E1101
-                    self.summarywriter.add_summary(summary)
+            if k % 1250 == 0:
 
-                else:
-                    [_] = tf.get_default_session().run(
-                        [self.apply_gradients_op])
-            Date=time.strftime(fmt,time.localtime(time.time()))    
-            print "the time is: ", Date 
-            #get the loss
-            loss = self.average_loss.eval()
-            acc = self.average_acc.eval()
-            num_blocks += 1
-            epoch_loss += loss
-            epoch_acc += acc
+                #get the loss
+                loss = self.average_loss.eval()
+                acc = self.average_acc.eval()
+                num_blocks += 1
+                epoch_loss += loss
+                epoch_acc += acc
   
-            print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
-            self.init_loss.run()
-            self.init_acc.run()
-            self.init_num_frames.run()
+                print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
+                self.init_loss.run()
+                self.init_acc.run()
+                self.init_num_frames.run()
 
-        dispenser.init_feature()
         #reinitialize the gradients and the loss
         self.init_grads.run() #pylint: disable=E1101
         #self.init_loss.run()
@@ -332,74 +310,48 @@ class Trainer(object):
         return epoch_loss/num_blocks
 
   
-    def evaluate(self, dispenser_dev):
+    def evaluate(self, dev_hd5f_file):
         '''
         Evaluate the performance of the neural net
 
         Args:
-            dispenser_dev: a batchdispenser for dev data
+            dev_hd5f_file: a hd5f file for dev data
         Returns:
             the loss of the dev data
         '''
         num_blocks = 0
         epoch_loss = 0.0
         epoch_acc = 0.0
-        while dispenser_dev.have_feature():
-            fmt='%Y-%m-%d %a %H:%M:%S'
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
-            #get partial of the taining data
-            inputs, targets = dispenser_dev.get_feature()
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
-
-            #get a list of sequence lengths
-            input_seq_length = inputs.shape[0]
-            output_seq_length = targets.shape[0]
-        
-            assert input_seq_length == output_seq_length
-            #fill the inputs to have a round number of minibatches
-            added_inputs = np.row_stack((inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1]))))
-
-            added_targets = np.append(targets, np.zeros(self.minibatch_size - len(targets)%self.minibatch_size))
-
-            input_seq_length = input_seq_length + (self.minibatch_size - input_seq_length%self.minibatch_size)
-
-            output_seq_length = output_seq_length + (self.minibatch_size - output_seq_length%self.minibatch_size)
-
-            #feed in the batches one by one and accumulate the gradients and loss
-            for k in range(input_seq_length/self.minibatch_size):
-                batch_inputs = added_inputs[k*self.minibatch_size:
-                                            (k+1)*self.minibatch_size,
-                                            :]
-
-                batch_targets = added_targets[k*self.minibatch_size:
-                                            (k+1)*self.minibatch_size]
-                batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
-                #pylint: disable=E1101
+        hd5f = h5py.File(dev_hd5f_file, 'r')
  
-                self.update_valid_loss.run(
-                    feed_dict={self.inputs:batch_inputs,
-                               self.targets:batch_targets})
-                
-            Date=time.strftime(fmt,time.localtime(time.time()))
-            print "the time is: ", Date  
+        num_batchs = hd5f['data'].len() / self.minibatch_size
+        input_dim = hd5f['data'].shape[1] - 1
 
-            #get the loss
-            loss = self.average_loss.eval()
-            acc = self.average_acc.eval()
-            num_blocks += 1
-            epoch_loss += loss
-            epoch_acc += acc
-            print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
-            self.init_loss.run()
-            self.init_acc.run()
-            self.init_num_frames.run()
+        #feed in the batches one by one and accumulate the gradients and loss
+        for k in range(num_batchs):
+            batch_inputs = hd5f['data'][k*self.minibatch_size:
+                                        (k+1)*self.minibatch_size,
+                                        0:input_dim]
 
-        dispenser_dev.init_feature()
-        #reinitialize the loss
-        #self.init_loss.run()
-        #self.init_num_frames.run()
+            batch_targets = hd5f['data'][k*self.minibatch_size:
+                                        (k+1)*self.minibatch_size, input_dim:input_dim+1]
+            batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
+            #pylint: disable=E1101
+ 
+            self.update_valid_loss.run(
+                feed_dict={self.inputs:batch_inputs,
+                            self.targets:batch_targets})
+            if k % 1250 == 0:
+                #get the loss
+                loss = self.average_loss.eval()
+                acc = self.average_acc.eval()
+                num_blocks += 1
+                epoch_loss += loss
+                epoch_acc += acc
+                print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
+                self.init_loss.run()
+                self.init_acc.run()
+                self.init_num_frames.run()
 
         return epoch_loss/num_blocks
 

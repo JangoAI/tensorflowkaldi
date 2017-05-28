@@ -4,7 +4,7 @@ run this file to go through the neural net training procedure, look at the confi
 import os
 from six.moves import configparser
 from neuralNetworks import nnet
-from processing import ark, prepare_data, feature_reader, batchdispenser, target_coder
+from processing import ark, prepare_data, feature_reader, batchdispenser, target_coder, ark2hdf5
 from kaldi import gmm
 
 #here you can set which steps should be executed. If a step has been executed in the past the result have been saved and the step does not have to be executed again (if nothing has changed)
@@ -25,7 +25,9 @@ ALIGN_LDA = False			#required if the LDA GMM is used for alignments
 TEST_LDA = False			#required if the performance of the LDA GMM is tested
 DNNFEATURESPRO = False      #required if the features need global transform 
 DNNTESTFEATPRO = False      #required if the test features need global transform
-TRAIN_NNET = False			#required
+TRAINARKTOHDF5 = False
+DEVARKTOHDF5 = False
+TRAIN_NNET = True			#required
 TEST_NNET = True			#required if the performance of the DNN is tested
 
 
@@ -278,29 +280,38 @@ if TRAIN_NNET:
                 config.get('directories', 'expdir') + '/' + config.get('nnet', 'name'),
                 config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name'),
                 config.get('directories', 'test_features') + '/' + config.get('dnn-features', 'name')))
+    #create a target coder
+    coder = target_coder.AlignmentCoder(lambda x, y: x, num_labels)
 
     #create a feature reader
     #create a train data feature reader
     featdir = config.get('directories', 'train_features') + '/' +  config.get('dnn-features', 'name')
+    #create hdf5 formalt file
+    if TRAINARKTOHDF5:
+        ark2hdf5.HDF5(featdir+'/final_train_feature.scp', coder, alifile, config.get('directories','hdf5_train'),input_dim)
+
     with open(featdir + '/maxlength', 'r') as fid:
         max_input_length = int(fid.read())
         featreader = feature_reader.FeatureReader(featdir + '/final_train_feature.scp', max_input_length)
     #create a dev data feature reader
     featdir_dev = config.get('directories', 'dev_features') + '/' + config.get('dnn-features', 'name')
+    if DEVARKTOHDF5:
+        ark2hdf5.HDF5(featdir_dev+'/final_dev_feature.scp', coder, alifile_dev, config.get('directories','hdf5_dev'),input_dim)
     with open(featdir_dev + '/maxlength', 'r') as fid:
         max_input_length_dev = int(fid.read())
         featreader_dev = feature_reader.FeatureReader(featdir_dev + '/final_dev_feature.scp', max_input_length_dev)
-
-
-
-    #create a target coder
-    coder = target_coder.AlignmentCoder(lambda x, y: x, num_labels)
 
     dispenser = batchdispenser.AlignmentBatchDispenser(featreader, coder, int(config.get('nnet', 'numutterances_per_block')), alifile)
     dispenser_dev = batchdispenser.AlignmentBatchDispenser(featreader_dev, coder, int(config.get('nnet', 'numutterances_per_block')), alifile_dev)
     #train the neural net
     print '------- training neural net ----------'
-    nnet.train(dispenser, dispenser_dev)
+    nnet.train(config.get('directories','hdf5_train'), config.get('directories','hdf5_dev'), int(config.get('nnet','minibatch_size')), int(config.get('nnet','minibatch_size')))
+    #compute the state prior and write it to the savedir
+    prior = dispenser.compute_target_count().astype(np.float32)
+    prior = prior + 1
+    prior = prior/prior.sum()
+
+    np.save(config.get('directories','savedir') + '/prior.npy', prior)
 
 
 if TEST_NNET:
