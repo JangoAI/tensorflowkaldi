@@ -2,10 +2,12 @@
 run this file to go through the neural net training procedure, look at the config files in the config directory to modify the settings'''
 
 import os
+import numpy as np
 from six.moves import configparser
 from neuralNetworks import nnet
 from processing import ark, prepare_data, feature_reader, batchdispenser, target_coder, ark2hdf5
 from kaldi import gmm
+
 
 #here you can set which steps should be executed. If a step has been executed in the past the result have been saved and the step does not have to be executed again (if nothing has changed)
 GMMTRAINFEATURES = False 	#required
