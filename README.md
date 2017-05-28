@@ -2,10 +2,7 @@
 Kaldi with TensorFlow Neural Net
 ================================
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 253da06027a4003f87dfb38c951dc0f4e802e90c
 Installation
 --------------------------
 
