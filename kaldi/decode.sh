@@ -1,7 +1,7 @@
 # This script does decoding with a transition model
 
 # Begin configuration section.
-stage=2
+stage=1
 nj=4 # number of decoding jobs.  If --transform-dir set, must match that number!
 acwt=0.1  # Just a default value, used for adaptation and beam-pruning..
 cmd=run.pl

@@ -288,7 +288,7 @@ class Trainer(object):
                     [self.apply_gradients_op])
 
 
-            if k % 1250 == 0:
+            if k % 1250 == 0 and k > 0:
 
                 #get the loss
                 loss = self.average_loss.eval()
@@ -341,7 +341,7 @@ class Trainer(object):
             self.update_valid_loss.run(
                 feed_dict={self.inputs:batch_inputs,
                             self.targets:batch_targets})
-            if k % 1250 == 0:
+            if k % 1250 == 0 and k  > 0:
                 #get the loss
                 loss = self.average_loss.eval()
                 acc = self.average_acc.eval()

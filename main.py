@@ -313,7 +313,7 @@ if TRAIN_NNET:
     prior = prior + 1
     prior = prior/prior.sum()
 
-    np.save(config.get('directories','savedir') + '/prior.npy', prior)
+    np.save(config.get('directories','expdir') + '/'+ config.get('nnet','name') + '/prior.npy', prior)
 
 
 if TEST_NNET:
