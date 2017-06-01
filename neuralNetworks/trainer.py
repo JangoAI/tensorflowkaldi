@@ -1,3 +1,4 @@
+# coding=utf-8
 '''@file trainer.py
 neural network trainer environment'''
 
@@ -310,7 +311,7 @@ class Trainer(object):
         return epoch_loss/num_blocks
 
   
-    def evaluate(self, dev_hd5f_file):
+    def evaluate(self, dev_hd5f_file, num_gpu):
         '''
         Evaluate the performance of the neural net
 
@@ -337,10 +338,15 @@ class Trainer(object):
                                         (k+1)*self.minibatch_size, input_dim:input_dim+1]
             batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
             #pylint: disable=E1101
- 
-            self.update_valid_loss.run(
-                feed_dict={self.inputs:batch_inputs,
-                            self.targets:batch_targets})
+           
+            for i in range(num_gpu):
+                with tf.device('/gpu:%d' % i):
+                    with tf.name_scope('GPU_%d' % i) as scope:
+                        self.update_valid_loss.run(
+                            feed_dict={self.inputs:batch_inputs[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU,],
+                                        self.targets:batch_targets[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU]})
+
+
             if k % 1250 == 0 and k  > 0:
                 #get the loss
                 loss = self.average_loss.eval()
@@ -363,6 +369,28 @@ class Trainer(object):
     def save_learning_rate(self):
 
         raise NotImplementedError("Abstract method")
+
+
+    # 计算每一个变量梯度的平均值。
+    def average_gradients(tower_grads):
+        average_grads = []
+
+        # 枚举所有的变量和变量在不同GPU上计算得出的梯度。
+        for grad_and_vars in zip(*tower_grads):
+            # 计算所有GPU上的梯度平均值。
+            grads = []
+            for g, _ in grad_and_vars:
+                expanded_g = tf.expand_dims(g, 0)
+                grads.append(expanded_g)
+            grad = tf.concat(grads, 0)
+            grad = tf.reduce_mean(grad, 0)
+
+            v = grad_and_vars[0][1]
+            grad_and_var = (grad, v)
+            # 将变量和它的平均梯度对应起来。
+            average_grads.append(grad_and_var)
+        # 返回所有变量的平均梯度，这个将被用于变量的更新。
+        return average_grads
 
 
     def save_model(self,  filename):
