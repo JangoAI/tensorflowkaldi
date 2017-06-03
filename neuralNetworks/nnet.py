@@ -94,7 +94,6 @@ class Nnet(object):
         halve_learning_rate = int(self.conf['halve_learning_rate']) 
         start_halving_impr = float(self.conf['start_halving_impr'])
         end_halving_impr = float(self.conf['end_halving_impr'])
-        num_gpu = int(self.conf['N_GPU'])
         trainer = CrossEnthropyTrainer(
             self.dnn, self.input_dim, train_max_length,
             train_max_length,
@@ -124,7 +123,7 @@ class Nnet(object):
 
             #do a validation step
             
-            validation_loss = trainer.evaluate(dev_hdf5_file, num_gpu)
+            validation_loss = trainer.evaluate(dev_hdf5_file)
             print '======================================= validation loss at epoch %d is: %f =============================' % (epoch, validation_loss)
 
             #start the training iteration
@@ -138,7 +137,7 @@ class Nnet(object):
 
                 #validate the model if required
 
-                current_loss = trainer.evaluate(dev_hdf5_file, num_gpu)
+                current_loss = trainer.evaluate(dev_hdf5_file)
                 print '======================================= validation loss at epoch %d is: %f ==========================' % (epoch, current_loss)
 
                 epoch += 1
