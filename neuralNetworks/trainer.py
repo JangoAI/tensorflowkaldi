@@ -1,4 +1,4 @@
-# coding=utf-8
+#coding=utf8
 '''@file trainer.py
 neural network trainer environment'''
 
@@ -247,6 +247,27 @@ class Trainer(object):
         self.summarywriter = tf.summary.FileWriter(logdir=logdir,
                                                     graph=self.graph)
 
+    # 计算每一个变量梯度的平均值。
+    def average_gradients(tower_grads):
+        average_grads = []
+
+        # 枚举所有的变量和变量在不同GPU上计算得出的梯度。
+        for grad_and_vars in zip(*tower_grads):
+            # 计算所有GPU上的梯度平均值。
+            grads = []
+            for g, _ in grad_and_vars:
+                expanded_g = tf.expand_dims(g, 0)
+                grads.append(expanded_g)
+            grad = tf.concat(grads, 0)
+            grad = tf.reduce_mean(grad, 0)
+
+            v = grad_and_vars[0][1]
+            grad_and_var = (grad, v)
+            # 将变量和它的平均梯度对应起来。
+            average_grads.append(grad_and_var)
+        # 返回所有变量的平均梯度，这个将被用于变量的更新。
+        return average_grads
+
     def update(self, train_hd5f_file):
         '''
         update the neural model with a batch or training data
@@ -311,12 +332,14 @@ class Trainer(object):
         return epoch_loss/num_blocks
 
   
-    def evaluate(self, dev_hd5f_file, num_gpu):
+    def evaluate(self, dev_hd5f_file, N_GPU):
         '''
         Evaluate the performance of the neural net
 
         Args:
             dev_hd5f_file: a hd5f file for dev data
+
+            N_GPU: number of gpus
         Returns:
             the loss of the dev data
         '''
@@ -337,15 +360,17 @@ class Trainer(object):
             batch_targets = hd5f['data'][k*self.minibatch_size:
                                         (k+1)*self.minibatch_size, input_dim:input_dim+1]
             batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
-            #pylint: disable=E1101
-           
-            for i in range(num_gpu):
-                with tf.device('/gpu:%d' % i):
-                    with tf.name_scope('GPU_%d' % i) as scope:
-                        self.update_valid_loss.run(
-                            feed_dict={self.inputs:batch_inputs[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU,],
-                                        self.targets:batch_targets[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU]})
 
+            #pylint: disable=E1101
+            tower_loss = []
+            tower_acc = []
+            for i in range(N_GPU):
+                with tf.device('/gpu:%d' % i):
+                    Block_loss, Block_acc, _= self.update_valid_loss.run(
+                            feed_dict={self.inputs:batch_inputs[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size,],
+                                    self.targets:batch_targets[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size,]})
+                    tower_acc.append(Block_acc)
+                    tower_loss.append(Block_loss)
 
             if k % 1250 == 0 and k  > 0:
                 #get the loss
@@ -359,6 +384,9 @@ class Trainer(object):
                 self.init_acc.run()
                 self.init_num_frames.run()
 
+            tower_loss = []
+            tower_acc = []
+
         return epoch_loss/num_blocks
 
     def halve_learning_rate(self):
@@ -369,28 +397,6 @@ class Trainer(object):
     def save_learning_rate(self):
 
         raise NotImplementedError("Abstract method")
-
-
-    # 计算每一个变量梯度的平均值。
-    def average_gradients(tower_grads):
-        average_grads = []
-
-        # 枚举所有的变量和变量在不同GPU上计算得出的梯度。
-        for grad_and_vars in zip(*tower_grads):
-            # 计算所有GPU上的梯度平均值。
-            grads = []
-            for g, _ in grad_and_vars:
-                expanded_g = tf.expand_dims(g, 0)
-                grads.append(expanded_g)
-            grad = tf.concat(grads, 0)
-            grad = tf.reduce_mean(grad, 0)
-
-            v = grad_and_vars[0][1]
-            grad_and_var = (grad, v)
-            # 将变量和它的平均梯度对应起来。
-            average_grads.append(grad_and_var)
-        # 返回所有变量的平均梯度，这个将被用于变量的更新。
-        return average_grads
 
 
     def save_model(self,  filename):
