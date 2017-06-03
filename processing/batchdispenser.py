@@ -97,8 +97,6 @@ class BatchDispenser(object):
         for i in range(1, len(block_inputs)):
             inputs = np.row_stack((inputs, block_inputs[i]))
 
-
-
         targets = block_targets[0]
         for i in range(1, len(block_targets)):
             targets = np.append(targets, block_targets[i])

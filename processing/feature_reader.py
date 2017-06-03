@@ -88,10 +88,11 @@ def apply_cmvn(utt, stats):
     mean = stats[0, :-1]/stats[0, -1]
 
     #compute variance
-    variance = stats[1, :-1]/stats[0, -1] - np.square(mean)
+    #variance = stats[1, :-1]/stats[0, -1] - np.square(mean)
 
     #return mean and variance normalised utterance
-    return np.divide(np.subtract(utt, mean), np.sqrt(variance))
+    return np.subtract(utt, mean)
+    #return np.divide(np.subtract(utt, mean), np.sqrt(variance))
 
 def splice(utt, context_width):
     '''

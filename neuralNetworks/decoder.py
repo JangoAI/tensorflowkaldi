@@ -60,6 +60,7 @@ class Decoder(object):
         seq_length = [inputs.shape[0]]
 
         #pad the inputs
+
         #inputs = np.append(inputs, np.zeros([self.max_length-inputs.shape[0], inputs.shape[1]]), 0)
         #pylint: disable=E1101
         return self.outputs.eval(feed_dict={self.inputs:inputs,self.seq_length:seq_length})

@@ -1,3 +1,4 @@
+# coding=utf-8
 '''@file trainer.py
 neural network trainer environment'''
 
@@ -5,6 +6,8 @@ from abc import ABCMeta, abstractmethod
 import tensorflow as tf
 import numpy as np
 from classifiers import seq_convertors
+import time
+import h5py
 
 class Trainer(object):
     '''General class for the training environment for a neural net graph'''
@@ -244,12 +247,12 @@ class Trainer(object):
         self.summarywriter = tf.summary.FileWriter(logdir=logdir,
                                                     graph=self.graph)
 
-    def update(self, dispenser):
+    def update(self, train_hd5f_file):
         '''
         update the neural model with a batch or training data
 
         Args:
-            dispenser: a batchdispenser for training data
+            train_hd5f_file: a hd5f for training data
 
         Returns:
             the loss of this epoch
@@ -257,63 +260,49 @@ class Trainer(object):
         num_blocks = 0
         epoch_loss = 0.0
         epoch_acc = 0.0
+        hd5f = h5py.File(train_hd5f_file, 'r')
  
-        while dispenser.have_feature():
+        num_batchs = hd5f['data'].len() / self.minibatch_size
+        input_dim = hd5f['data'].shape[1] - 1
+        #feed in the batches one by one and accumulate the gradients and loss
+        for k in range(num_batchs):
 
-            #get partial of the taining data
-            inputs, targets = dispenser.get_feature()
+            batch_inputs = hd5f['data'][ k*self.minibatch_size:(k+1)*self.minibatch_size, 0:input_dim]
+            batch_targets = hd5f['data'][ k*self.minibatch_size:(k+1)*self.minibatch_size, input_dim:input_dim+1]
+            batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
 
-            #get a list of sequence lengths
-            input_seq_length = inputs.shape[0]
-            output_seq_length = targets.shape[0]
-        
-            assert input_seq_length == output_seq_length
-            #fill the inputs to have a round number of minibatches
-            added_inputs = np.append(inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1])), 0)
+            #pylint: disable=E1101
+            self.update_gradients_op.run(feed_dict={self.inputs:batch_inputs, self.targets:batch_targets})
 
-            added_targets = np.append(targets, np.zeros(self.minibatch_size - len(targets)%self.minibatch_size))
+            #apply the accumulated gradients to update the model parameters and
+            #evaluate the loss
+            if self.summarywriter is not None:
 
-            input_seq_length = input_seq_length + (self.minibatch_size - input_seq_length%self.minibatch_size)
+                [summary, _] = tf.get_default_session().run(
+                    [ self.summary, self.apply_gradients_op])
 
-            output_seq_length = output_seq_length + (self.minibatch_size - output_seq_length%self.minibatch_size)
-
-
-
-            #feed in the batches one by one and accumulate the gradients and loss
-            for k in range(input_seq_length/self.minibatch_size):
-
-                batch_inputs = added_inputs[ k*self.minibatch_size:(k+1)*self.minibatch_size,:]
-                batch_targets = added_targets[ k*self.minibatch_size:(k+1)*self.minibatch_size]
-                batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
                 #pylint: disable=E1101
-                self.update_gradients_op.run(feed_dict={self.inputs:batch_inputs, self.targets:batch_targets})
+                self.summarywriter.add_summary(summary)
 
-                #apply the accumulated gradients to update the model parameters and
-                #evaluate the loss
-                if self.summarywriter is not None:
+            else:
+                [_] = tf.get_default_session().run(
+                    [self.apply_gradients_op])
 
-                    [summary, _] = tf.get_default_session().run(
-                        [ self.summary, self.apply_gradients_op])
 
-                    #pylint: disable=E1101
-                    self.summarywriter.add_summary(summary)
+            if k % 1250 == 0 and k > 0:
 
-                else:
-                    [_] = tf.get_default_session().run(
-                        [self.apply_gradients_op])
-            #get the loss
-            loss = self.average_loss.eval()
-            acc = self.average_acc.eval()
-            num_blocks += 1
-            epoch_loss += loss
-            epoch_acc += acc
+                #get the loss
+                loss = self.average_loss.eval()
+                acc = self.average_acc.eval()
+                num_blocks += 1
+                epoch_loss += loss
+                epoch_acc += acc
   
-            print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
-            self.init_loss.run()
-            self.init_acc.run()
-            self.init_num_frames.run()
+                print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
+                self.init_loss.run()
+                self.init_acc.run()
+                self.init_num_frames.run()
 
-        dispenser.init_feature()
         #reinitialize the gradients and the loss
         self.init_grads.run() #pylint: disable=E1101
         #self.init_loss.run()
@@ -322,68 +311,53 @@ class Trainer(object):
         return epoch_loss/num_blocks
 
   
-    def evaluate(self, dispenser_dev):
+    def evaluate(self, dev_hd5f_file, num_gpu):
         '''
         Evaluate the performance of the neural net
 
         Args:
-            dispenser_dev: a batchdispenser for dev data
+            dev_hd5f_file: a hd5f file for dev data
         Returns:
             the loss of the dev data
         '''
         num_blocks = 0
         epoch_loss = 0.0
         epoch_acc = 0.0
-        while dispenser_dev.have_feature():
+        hd5f = h5py.File(dev_hd5f_file, 'r')
+ 
+        num_batchs = hd5f['data'].len() / self.minibatch_size
+        input_dim = hd5f['data'].shape[1] - 1
 
-            #get partial of the taining data
-            inputs, targets = dispenser_dev.get_feature()
+        #feed in the batches one by one and accumulate the gradients and loss
+        for k in range(num_batchs):
+            batch_inputs = hd5f['data'][k*self.minibatch_size:
+                                        (k+1)*self.minibatch_size,
+                                        0:input_dim]
+
+            batch_targets = hd5f['data'][k*self.minibatch_size:
+                                        (k+1)*self.minibatch_size, input_dim:input_dim+1]
+            batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
+            #pylint: disable=E1101
+           
+            for i in range(num_gpu):
+                with tf.device('/gpu:%d' % i):
+                    with tf.name_scope('GPU_%d' % i) as scope:
+                        self.update_valid_loss.run(
+                            feed_dict={self.inputs:batch_inputs[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU,],
+                                        self.targets:batch_targets[i*self.minibatch_size/N_GPU:(i+1)*self.minibatch_size/N_GPU]})
 
 
-            #get a list of sequence lengths
-            input_seq_length = inputs.shape[0]
-            output_seq_length = targets.shape[0]
-        
-            assert input_seq_length == output_seq_length
-            #fill the inputs to have a round number of minibatches
-            added_inputs = np.row_stack((inputs, np.zeros(((self.minibatch_size - len(inputs)%self.minibatch_size),inputs.shape[1]))))
-
-            added_targets = np.append(targets, np.zeros(self.minibatch_size - len(targets)%self.minibatch_size))
-
-            input_seq_length = input_seq_length + (self.minibatch_size - input_seq_length%self.minibatch_size)
-
-            output_seq_length = output_seq_length + (self.minibatch_size - output_seq_length%self.minibatch_size)
-
-            #feed in the batches one by one and accumulate the gradients and loss
-            for k in range(input_seq_length/self.minibatch_size):
-                batch_inputs = added_inputs[k*self.minibatch_size:
-                                            (k+1)*self.minibatch_size,
-                                            :]
-
-                batch_targets = added_targets[k*self.minibatch_size:
-                                            (k+1)*self.minibatch_size]
-                batch_targets = np.reshape(batch_targets, (self.minibatch_size, 1))
-                #pylint: disable=E1101
-
-                self.update_valid_loss.run(
-                    feed_dict={self.inputs:batch_inputs,
-                               self.targets:batch_targets})
-
-            #get the loss
-            loss = self.average_loss.eval()
-            acc = self.average_acc.eval()
-            num_blocks += 1
-            epoch_loss += loss
-            epoch_acc += acc
-            print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
-            self.init_loss.run()
-            self.init_acc.run()
-            self.init_num_frames.run()
-
-        dispenser_dev.init_feature()
-        #reinitialize the loss
-        #self.init_loss.run()
-        #self.init_num_frames.run()
+            if k % 1250 == 0 and k  > 0:
+                #get the loss
+                loss = self.average_loss.eval()
+                acc = self.average_acc.eval()
+                num_blocks += 1
+                epoch_loss += loss
+                epoch_acc += acc
+                print "the block cross entroy loss is: ", loss, " the block Frame Accuracy is: ", acc
+                self.init_loss.run()
+                self.init_acc.run()
+                self.init_num_frames.run()
 
         return epoch_loss/num_blocks
 
@@ -395,6 +369,28 @@ class Trainer(object):
     def save_learning_rate(self):
 
         raise NotImplementedError("Abstract method")
+
+
+    # 计算每一个变量梯度的平均值。
+    def average_gradients(tower_grads):
+        average_grads = []
+
+        # 枚举所有的变量和变量在不同GPU上计算得出的梯度。
+        for grad_and_vars in zip(*tower_grads):
+            # 计算所有GPU上的梯度平均值。
+            grads = []
+            for g, _ in grad_and_vars:
+                expanded_g = tf.expand_dims(g, 0)
+                grads.append(expanded_g)
+            grad = tf.concat(grads, 0)
+            grad = tf.reduce_mean(grad, 0)
+
+            v = grad_and_vars[0][1]
+            grad_and_var = (grad, v)
+            # 将变量和它的平均梯度对应起来。
+            average_grads.append(grad_and_var)
+        # 返回所有变量的平均梯度，这个将被用于变量的更新。
+        return average_grads
 
 
     def save_model(self,  filename):

@@ -11,7 +11,7 @@ min_active=200
 lattice_beam=8.0 # Beam we use in lattice generation.
 iter=final
 num_threads=1 # if >1, will use gmm-latgen-faster-parallel
-scoring_opts=
+scoring_opts="--min-lmwt 4 --max-lmwt 15"
 skip_scoring=false
 minimize=false
 # End configuration section.
